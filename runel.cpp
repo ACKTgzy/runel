@@ -9,20 +9,8 @@
 
 using namespace std;
 
-// 检查是否为 Ubuntu 系统
-bool isUbuntu() {
-    ifstream osRelease("/etc/os-release");
-    string line;
-    while (getline(osRelease, line)) {
-        if (line.find("ID=ubuntu") != string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool has_access(const filesystem::path& p) {
-    return access(p.c_str(), R_OK) == 0; // 检查读权限
+    return access(p.c_str(), R_OK) == 0; 
 }
 
 std::vector<filesystem::path> findFiles(const filesystem::path& directory, const string& targetFileName) {
@@ -30,7 +18,7 @@ std::vector<filesystem::path> findFiles(const filesystem::path& directory, const
     try
     {
         for (const auto& entry : filesystem::recursive_directory_iterator(directory)) {
-            if (!has_access(entry.path())) { // 逐项权限检查
+            if (!has_access(entry.path())) { 
                 continue;
             }
             if (entry.is_regular_file() && entry.path().filename() == targetFileName) {
@@ -40,17 +28,17 @@ std::vector<filesystem::path> findFiles(const filesystem::path& directory, const
     }
     catch (const filesystem::filesystem_error& e)
     {
-        std::cerr << "Error1:" << e.what() << endl;
+        cerr<<e.what()<<endl;
     }
     return foundPaths;
 }
 
-std::vector<filesystem::path> findFiles(const filesystem::path& directory, const string& targetFileName, int) {
+std::vector<filesystem::path> findFiles(const filesystem::path& directory, const string& targetFileName,bool) {
     vector<filesystem::path> foundPaths;
     try
     {
         for (const auto& entry : filesystem::recursive_directory_iterator(directory)) {
-            if (!has_access(entry.path())) { // 逐项权限检查
+            if (!has_access(entry.path())) { 
                 continue;
             }
             if (entry.is_regular_file()) {
@@ -63,7 +51,7 @@ std::vector<filesystem::path> findFiles(const filesystem::path& directory, const
     }
     catch (const filesystem::filesystem_error& e)
     {
-        std::cerr << "Error2:" << e.what() << endl;
+        cerr<<e.what()<<endl;
     }
     return foundPaths;
 }
@@ -76,15 +64,6 @@ struct FilePath {
 vector<filesystem::path> getRemovableMounts() {
     vector<filesystem::path> mounts;
 
-    // 检查常见挂载目录（Linux/MacOS）
-    for (const auto& entry : filesystem::directory_iterator("/media")) {
-        mounts.push_back(entry.path());
-    }
-    for (const auto& entry : filesystem::directory_iterator("/mnt")) {
-        mounts.push_back(entry.path());
-    }
-
-    // 通过系统挂载信息检测（Linux）
     ifstream mountsFile("/proc/mounts");
     string line;
     while (getline(mountsFile, line)) {
@@ -102,15 +81,12 @@ vector<filesystem::path> getRemovableMounts() {
 FilePath runWhereFile(string targetFileName) {
     vector<filesystem::path> searchPaths;
 
-    // 添加当前目录
     searchPaths.push_back(filesystem::current_path());
 
-    // 添加可移动设备挂载点
     vector<filesystem::path> usbPaths = getRemovableMounts();
     searchPaths.insert(searchPaths.end(), usbPaths.begin(), usbPaths.end());
 
-    // 在所有路径中搜索
-    FilePath fileWhere;
+    FilePath fileWhere{" ",0};
     for (const auto& dir : searchPaths) {
         vector<filesystem::path> paths = findFiles(dir, targetFileName);
         if (!paths.empty()) {
@@ -122,12 +98,11 @@ FilePath runWhereFile(string targetFileName) {
         }
     }
 
-    // 模糊匹配后备搜索
-    if (fileWhere.fileMach == 0) {
+    if(fileWhere.fileMach == 0 ){
         for (const auto& dir : searchPaths) {
-            vector<filesystem::path> paths_fz = findFiles(dir, targetFileName, 0);
-            if (!paths_fz.empty()) {
-                for (const auto& path : paths_fz) {
+            vector<filesystem::path> paths = findFiles(dir, targetFileName,0);
+            if (!paths.empty()) {
+                for (const auto& path : paths) {
                     fileWhere.path += path.string();
                     fileWhere.path += " ";
                     fileWhere.fileMach++;
@@ -157,11 +132,6 @@ void handleCommand(const string& arg, const string& prefix = "") {
 }
 
 int main(int argc, char* argv[]) {
-    if (!isUbuntu()) {
-        cerr << "This program is designed to run on Ubuntu only." << endl;
-        return -1;
-    }
-
     for (int i = 1; i < argc; ++i) {
         string cmd = argv[i];
         if (++i >= argc) {
