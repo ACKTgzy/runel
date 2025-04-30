@@ -10,15 +10,15 @@
 using namespace std;
 
 bool has_access(const filesystem::path& p) {
-    return access(p.c_str(), R_OK) == 0; 
+    return access(p.c_str(), R_OK) == 0;
 }
 
 std::vector<filesystem::path> findFiles(const filesystem::path& directory, const string& targetFileName) {
     vector<filesystem::path> foundPaths;
     try
     {
-        for (const auto& entry : filesystem::recursive_directory_iterator(directory)) {
-            if (!has_access(entry.path())) { 
+        for (const auto& entry : filesystem::recursive_directory_iterator(directory, filesystem::directory_options::skip_permission_denied)) {
+            if (!has_access(entry.path())) {
                 continue;
             }
             if (entry.is_regular_file() && entry.path().filename() == targetFileName) {
@@ -28,17 +28,18 @@ std::vector<filesystem::path> findFiles(const filesystem::path& directory, const
     }
     catch (const filesystem::filesystem_error& e)
     {
-        cerr<<e.what()<<endl;
+        // 捕获异常并忽略，继续执行
+        cerr << "Error accessing directory: " << e.what() << endl;
     }
     return foundPaths;
 }
 
-std::vector<filesystem::path> findFiles(const filesystem::path& directory, const string& targetFileName,bool) {
+std::vector<filesystem::path> findFiles(const filesystem::path& directory, const string& targetFileName, bool) {
     vector<filesystem::path> foundPaths;
     try
     {
-        for (const auto& entry : filesystem::recursive_directory_iterator(directory)) {
-            if (!has_access(entry.path())) { 
+        for (const auto& entry : filesystem::recursive_directory_iterator(directory, filesystem::directory_options::skip_permission_denied)) {
+            if (!has_access(entry.path())) {
                 continue;
             }
             if (entry.is_regular_file()) {
@@ -51,7 +52,8 @@ std::vector<filesystem::path> findFiles(const filesystem::path& directory, const
     }
     catch (const filesystem::filesystem_error& e)
     {
-        cerr<<e.what()<<endl;
+        // 捕获异常并忽略，继续执行
+        cerr << "Error accessing directory: " << e.what() << endl;
     }
     return foundPaths;
 }
@@ -86,7 +88,7 @@ FilePath runWhereFile(string targetFileName) {
     vector<filesystem::path> usbPaths = getRemovableMounts();
     searchPaths.insert(searchPaths.end(), usbPaths.begin(), usbPaths.end());
 
-    FilePath fileWhere{" ",0};
+    FilePath fileWhere{ " ",0 };
     for (const auto& dir : searchPaths) {
         vector<filesystem::path> paths = findFiles(dir, targetFileName);
         if (!paths.empty()) {
@@ -98,9 +100,9 @@ FilePath runWhereFile(string targetFileName) {
         }
     }
 
-    if(fileWhere.fileMach == 0 ){
+    if (fileWhere.fileMach == 0) {
         for (const auto& dir : searchPaths) {
-            vector<filesystem::path> paths = findFiles(dir, targetFileName,0);
+            vector<filesystem::path> paths = findFiles(dir, targetFileName, 0);
             if (!paths.empty()) {
                 for (const auto& path : paths) {
                     fileWhere.path += path.string();
